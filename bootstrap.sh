@@ -17,7 +17,9 @@ echo updating system packages
 apt-add-repository -y ppa:brightbox/ruby-ng >/dev/null 2>&1
 apt-get -y update >/dev/null 2>&1
 
-install 'development tools' build-essential  dkms curl libxslt-dev libpq-dev python-dev python-pip python-feedvalidator python-software-properties python-sphinx libmariadbclient-dev libcurl4-gnutls-dev libevent-dev libffi-dev libssl-dev stunnel4 libsqlite3-dev
+sudo apt-get -y install libssl-dev  libsqlite3-dev gcc make python-pip dkms curl libxslt-dev libpq-dev python-dev python-pip python-feedvalidator python-software-properties python-sphinx libmariadb-client-lgpl-dev libcurl4-gnutls-dev libevent-dev libffi-dev stunnel4
+
+install 'development tools' build-essential
 
 install Ruby ruby2.3 ruby2.3-dev
 update-alternatives --set ruby /usr/bin/ruby2.3 >/dev/null 2>&1
@@ -46,19 +48,30 @@ gem install bundler -N >/dev/null 2>&1
 
 install Git git
 
-debconf-set-selections <<< 'mysql-server mysql-server/root_password password root'
-debconf-set-selections <<< 'mysql-server mysql-server/root_password_again password root'
-install MySQL mysql-server libmysqlclient-dev
-mysql -uroot -proot <<SQL
-CREATE DATABASE codeworkout DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
-CREATE DATABASE opendsa DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
+# Install MySQL
+sudo apt-get -y install libaio1 libaio-dev
 
-GRANT ALL PRIVILEGES ON codeworkout.* to 'codeworkout'@'localhost' IDENTIFIED BY 'codeworkout';
-FLUSH PRIVILEGES;
-
-GRANT ALL PRIVILEGES ON opendsa.* to 'opendsa'@'localhost'  IDENTIFIED BY 'opendsa';
-FLUSH PRIVILEGES;
-SQL
+#debconf-set-selections <<< 'mysql-server mysql-server/root_password password root'
+#debconf-set-selections <<< 'mysql-server mysql-server/root_password_again password root'
+#install MySQL mysql-server libmysqlclient-dev
+cd ~
+wget https://cdn.mysql.com//Downloads/MySQL-5.5/mysql-5.5.60-linux-glibc2.12-x86_64.tar.gz
+groupadd mysql
+useradd -r -g mysql -s /bin/false mysql
+cd /usr/local
+tar zxvf ~/mysql-5.5.60-linux-glibc2.12-x86_64.tar.gz
+ln -s mysql-5.5.60-linux-glibc2.12-x86_64 mysql
+ln -s /usr/local/mysql/bin/mysql /bin/mysql
+cd mysql
+chown -R mysql .
+chgrp -R mysql .
+scripts/mysql_install_db --user=mysql
+chown -R root .
+chown -R mysql data
+cp support-files/my-medium.cnf /etc/my.cnf
+bin/mysqld_safe --user=mysql &
+cp support-files/mysql.server /etc/init.d/mysql.server
+cd ~
 
 install 'Nokogiri dependencies' libxml2 libxml2-dev libxslt1-dev
 
@@ -101,6 +114,21 @@ echo debconf shared/accepted-oracle-license-v1-1 select true | sudo debconf-set-
 echo debconf shared/accepted-oracle-license-v1-1 seen true | sudo debconf-set-selections
 sudo apt-get install -y oracle-java8-installer
 sudo apt-get install -y ant
+
+echo Creating MySQL databases
+
+#mysql -uroot -proot <<SQL
+mysql -uroot <<SQL
+CREATE DATABASE codeworkout DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
+CREATE DATABASE opendsa DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_general_ci;
+
+GRANT ALL PRIVILEGES ON codeworkout.* to 'codeworkout'@'localhost' IDENTIFIED BY 'codeworkout';
+FLUSH PRIVILEGES;
+
+GRANT ALL PRIVILEGES ON opendsa.* to 'opendsa'@'localhost'  IDENTIFIED BY 'opendsa';
+FLUSH PRIVILEGES;
+SET PASSWORD FOR root@localhost = PASSWORD('root');
+SQL
 
 # Clone code-workout
 if [ ! -d /vagrant/code-workout ]; then
