@@ -17,13 +17,47 @@ echo updating system packages
 apt-add-repository -y ppa:brightbox/ruby-ng >/dev/null 2>&1
 apt-get -y update >/dev/null 2>&1
 
-sudo apt-get -y install libssl-dev  libsqlite3-dev gcc make python-pip dkms curl libxslt-dev libpq-dev python-dev python-pip python-feedvalidator python-software-properties python-sphinx libmariadb-client-lgpl-dev libcurl4-gnutls-dev libevent-dev libffi-dev stunnel4
+sudo apt-get -y install libssl-dev libsqlite3-dev gcc make python-pip dkms curl libxslt-dev libpq-dev python-dev python-pip python-feedvalidator software-properties-common python-sphinx libmariadb-client-lgpl-dev libcurl4-gnutls-dev libevent-dev libffi-dev stunnel4
 
 install 'development tools' build-essential
 
-install Ruby ruby2.3 ruby2.3-dev
-update-alternatives --set ruby /usr/bin/ruby2.3 >/dev/null 2>&1
-update-alternatives --set gem /usr/bin/gem2.3 >/dev/null 2>&1
+#install Ruby ruby2.3 ruby2.3-dev
+
+sudo apt-get -y install libssl1.0-dev autoconf bison libreadline-dev
+
+su vagrant << EOF
+
+  echo "Installing rbenv"
+  git clone https://github.com/rbenv/rbenv.git ~/.rbenv
+  git clone https://github.com/rbenv/ruby-build.git ~/.rbenv/plugins/ruby-build
+  echo 'export PATH="\$HOME/.rbenv/bin:\$PATH"' >> ~/.bashrc
+  echo 'eval "\$(rbenv init -)"' >> ~/.bashrc
+  sudo ln -s /home/vagrant/.rbenv/bin/rbenv /usr/bin/rbenv
+  source ~/.bashrc
+  export PATH="$HOME/.rbenv/bin:$PATH
+  eval "$(rbenv init -)"
+
+  echo 'export PATH="\$HOME/.rbenv/plugins/ruby-build/bin:\$PATH"' >> ~/.bashrc
+  source ~/.bashrc
+  export PATH="$HOME/.rbenv/plugins/ruby-build/bin:$PATH
+
+  echo Installing Ruby. NOTE: This may take some time.
+  rbenv install 2.3.1
+  rbenv local 2.3.1
+  rbenv global 2.3.1
+
+  echo installing Bundler
+  sudo ln -s /home/vagrant/.rbenv/shims/gem /usr/bin/gem
+  gem install bundler
+  sudo ln -s /home/vagrant/.rbenv/shims/bundle /usr/bin/bundle
+
+EOF
+
+sudo apt-get -y install libssl-dev
+
+
+#update-alternatives --set ruby /usr/bin/ruby2.3 >/dev/null 2>&1
+#update-alternatives --set gem /usr/bin/gem2.3 >/dev/null 2>&1
 
 
 # sudo apt-get update
@@ -42,9 +76,6 @@ update-alternatives --set gem /usr/bin/gem2.3 >/dev/null 2>&1
 # rbenv install 2.3.1
 # rbenv global 2.3.1
 # ruby -v
-
-echo installing Bundler
-gem install bundler -N >/dev/null 2>&1
 
 install Git git
 
@@ -72,6 +103,7 @@ cp support-files/my-medium.cnf /etc/my.cnf
 bin/mysqld_safe --user=mysql &
 cp support-files/mysql.server /etc/init.d/mysql.server
 cd ~
+rm mysql-5.5.60-linux-glibc2.12-x86_64.tar.gz
 
 install 'Nokogiri dependencies' libxml2 libxml2-dev libxslt1-dev
 
@@ -137,8 +169,7 @@ fi
 git pull
 
 cd /vagrant/code-workout
-bundle install
-bundle exec rake db:populate
+bundle install; bundle exec rake db:populate
 
 # Clone OpenDSA
 if [ ! -d /vagrant/OpenDSA ]; then
@@ -161,8 +192,7 @@ fi
 git pull
 
 cd /vagrant/OpenDSA-LTI
-bundle install
-bundle exec rake db:reset_populate
+bundle install; bundle exec rake db:reset_populate
 
 # Create link to OpenDSA
 ln -s /vagrant/OpenDSA /vagrant/OpenDSA-LTI/public
